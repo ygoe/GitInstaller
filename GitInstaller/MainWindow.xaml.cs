@@ -39,21 +39,23 @@ namespace GitInstaller
 			if (GetBeyondComparePath() == null)
 			{
 				beyondCompareCheckBox.IsEnabled = false;
+				ToolTipService.SetShowOnDisabled(beyondCompareCheckBox, true);
+				beyondCompareCheckBox.ToolTip = "Beyond Compare 4 not installed";
 			}
 			else
 			{
 				beyondCompareCheckBox.IsChecked = true;
-				beyondCompareCheckBox.ToolTip = "Beyond Compare 4 not installed";
 			}
 
 			if (GetNotepadPPPath() == null)
 			{
 				notepadPPCheckBox.IsEnabled = false;
+				ToolTipService.SetShowOnDisabled(notepadPPCheckBox, true);
+				notepadPPCheckBox.ToolTip = "Notepad++ not installed";
 			}
 			else
 			{
 				notepadPPCheckBox.IsChecked = true;
-				notepadPPCheckBox.ToolTip = "Notepad++ not installed";
 			}
 
 			if (diffMarginInstaller != null)
@@ -63,15 +65,17 @@ namespace GitInstaller
 			else
 			{
 				diffMarginCheckBox.IsEnabled = false;
+				ToolTipService.SetShowOnDisabled(diffMarginCheckBox, true);
 				diffMarginCheckBox.ToolTip = "Installer missing";
 				diffMarginVersionLabel.Text = "(Missing)";
 				diffMarginVersionLabel.Foreground = Brushes.RoyalBlue;
 			}
 
-			if (tortoiseGitCurrentVersion.Major == 0)
+			if (!(tortoiseGitCurrentVersion?.Major > 0))
 			{
 				resetTGitConfigCheckBox.IsEnabled = false;
 				resetTGitConfigCheckBox.IsChecked = true;
+				ToolTipService.SetShowOnDisabled(resetTGitConfigCheckBox, true);
 				resetTGitConfigCheckBox.ToolTip = "No configuration found";
 			}
 
@@ -84,6 +88,12 @@ namespace GitInstaller
 		{
 			Top = SystemParameters.WorkArea.Bottom - Height;
 			Left = (SystemParameters.WorkArea.Left + SystemParameters.WorkArea.Right) / 2 - Width / 2;
+
+			if (Environment.OSVersion.Version.Major >= 10)
+			{
+				// Compensate Windows 10's extra invisible border
+				Top += 7;
+			}
 		}
 
 		private async void StartButton_Click(object sender, RoutedEventArgs args)
@@ -112,7 +122,7 @@ namespace GitInstaller
 					InstallTortoiseGitNPPConfig();
 				}
 				if (tortoiseGitInstaller != null &&
-					tortoiseGitNewVersion > tortoiseGitCurrentVersion &&
+					(tortoiseGitCurrentVersion == null || tortoiseGitNewVersion > tortoiseGitCurrentVersion) &&
 					!await InstallTortoiseGit())
 				{
 					MessageBox.Show("TortoiseGit could not be installed.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -121,7 +131,7 @@ namespace GitInstaller
 				progressBar.Value = progress1;
 
 				if (gitInstaller != null &&
-					gitNewVersion > gitCurrentVersion)
+					(gitCurrentVersion == null || gitNewVersion > gitCurrentVersion))
 				{
 					IncreaseProgress(progress2);
 					if (!await InstallGitSetupConfig())
@@ -138,7 +148,7 @@ namespace GitInstaller
 				progressBar.Value = progress2;
 
 				if (gitLfsInstaller != null &&
-					gitLfsNewVersion > gitLfsCurrentVersion)
+					(gitLfsCurrentVersion == null || gitLfsNewVersion > gitLfsCurrentVersion))
 				{
 					IncreaseProgress(progress3);
 					if (!await InstallGitLfs())
@@ -175,7 +185,24 @@ namespace GitInstaller
 
 			if (progressBar.Value == 100)
 			{
-				MessageBox.Show("Installation complete.", "Git Installer", MessageBoxButton.OK, MessageBoxImage.Information);
+				if (tortoiseGitInstaller == null ||
+					gitInstaller == null ||
+					gitLfsInstaller == null)
+				{
+					MessageBox.Show(
+						"Installation complete, but one or more components were missing and have not been installed or upgraded.",
+						"Git Installer",
+						MessageBoxButton.OK,
+						MessageBoxImage.Warning);
+				}
+				else
+				{
+					MessageBox.Show(
+						"Installation complete.",
+						"Git Installer",
+						MessageBoxButton.OK,
+						MessageBoxImage.Information);
+				}
 				Close();
 			}
 		}
@@ -258,10 +285,10 @@ namespace GitInstaller
 
 		private void SetVersionLabel(TextBlock textBlock, Version currentVersion, Version newVersion)
 		{
-			if (currentVersion.Major > 0)
+			if (currentVersion?.Major > 0)
 			{
 				// Already installed
-				if (newVersion.Major > 0)
+				if (newVersion?.Major > 0)
 				{
 					// Installer available
 					if (newVersion > currentVersion)
@@ -287,7 +314,7 @@ namespace GitInstaller
 			else
 			{
 				// Not installed
-				if (newVersion.Major > 0)
+				if (newVersion?.Major > 0)
 				{
 					// Installer available
 					textBlock.Text = "New: " + newVersion.ToString();
