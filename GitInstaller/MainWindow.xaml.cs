@@ -33,6 +33,13 @@ namespace GitInstaller
 		{
 			InitializeComponent();
 
+			string myVersion = System.Reflection.Assembly.GetExecutingAssembly()
+				.GetCustomAttributes(typeof(System.Reflection.AssemblyFileVersionAttribute), false)
+				.OfType<System.Reflection.AssemblyFileVersionAttribute>()
+				.FirstOrDefault()
+				?.Version;
+			versionLabel.Text = "v" + myVersion;
+
 			FindInstallers();
 			FindCurrentVersions();
 
@@ -128,21 +135,27 @@ namespace GitInstaller
 					MessageBox.Show("TortoiseGit could not be installed.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
 					return;
 				}
+				tortoiseGitCurrentVersion = tortoiseGitNewVersion;   // Can't be determined until TortoiseGit was started
 				progressBar.Value = progress1;
 
 				if (gitInstaller != null &&
 					(gitCurrentVersion == null || gitNewVersion > gitCurrentVersion))
 				{
 					IncreaseProgress(progress2);
-					if (!await InstallGitSetupConfig())
-					{
-						MessageBox.Show("Git setup config could not be installed.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-						return;
-					}
+					InstallGitSetupConfig();
 					if (!await InstallGit())
 					{
 						MessageBox.Show("Git could not be installed.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
 						return;
+					}
+
+					try
+					{
+						Process.Start("git.exe", "config --global tgit.projectlanguage -1");
+					}
+					catch (Exception ex)
+					{
+						MessageBox.Show("Global Git configuration could not be set. " + ex.Message, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 					}
 				}
 				progressBar.Value = progress2;
@@ -177,7 +190,7 @@ namespace GitInstaller
 			}
 			finally
 			{
-				FindCurrentVersions();
+				FindCurrentVersions(true);
 				SetVersionLabel(tortoiseGitVersionLabel, tortoiseGitCurrentVersion, tortoiseGitNewVersion);
 				SetVersionLabel(gitVersionLabel, gitCurrentVersion, gitNewVersion);
 				SetVersionLabel(gitLfsVersionLabel, gitLfsCurrentVersion, gitLfsNewVersion);
@@ -214,16 +227,23 @@ namespace GitInstaller
 			gitLfsInstaller = FindHighestVersionFile(@"^git-lfs-windows-#\.exe$", out gitLfsNewVersion);
 			Version vsDiffMarginVersion;
 			diffMarginInstaller = FindHighestVersionFile(@"^GitDiffMargin-#.*\.vsix$", out vsDiffMarginVersion);
+			if (diffMarginInstaller == null)
+			{
+				diffMarginInstaller = FindHighestVersionFile(@"^GitDiffMargin\.vsix$", out vsDiffMarginVersion);
+			}
 		}
 
-		private void FindCurrentVersions()
+		private void FindCurrentVersions(bool afterInstall = false)
 		{
-			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit"))
+			if (!afterInstall)
 			{
-				string version = key?.GetValue("CurrentVersion") as string;
-				if (!string.IsNullOrEmpty(version))
+				using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit"))
 				{
-					tortoiseGitCurrentVersion = SimplifyVersion(Version.Parse(version));
+					string version = key?.GetValue("CurrentVersion") as string;
+					if (!string.IsNullOrEmpty(version))
+					{
+						tortoiseGitCurrentVersion = SimplifyVersion(Version.Parse(version));
+					}
 				}
 			}
 
@@ -332,24 +352,44 @@ namespace GitInstaller
 
 		private string FindHighestVersionFile(string pattern, out Version version)
 		{
-			pattern = pattern.Replace("#", "([0-9.]+)");
-
 			try
 			{
-				var result = Directory.GetFiles(filesPath)
-					.Where(fileName => Regex.IsMatch(Path.GetFileName(fileName), pattern, RegexOptions.IgnoreCase))
-					.Select(fileName => new
-					{
-						FileName = fileName,
-						Version = Version.Parse(Regex.Match(Path.GetFileName(fileName), pattern).Groups[1].Value)
-					})
-					.OrderByDescending(x => x.Version)
-					.FirstOrDefault();
-
-				if (result != null)
+				if (pattern.Contains("#"))
 				{
-					version = SimplifyVersion(result.Version);
-					return result.FileName;
+					pattern = pattern.Replace("#", "([0-9.]+)");
+					var result = Directory.GetFiles(filesPath)
+						.Where(fileName => Regex.IsMatch(Path.GetFileName(fileName), pattern, RegexOptions.IgnoreCase))
+						.Select(fileName => new
+						{
+							FileName = fileName,
+							Version = Version.Parse(Regex.Match(Path.GetFileName(fileName), pattern).Groups[1].Value)
+						})
+						.OrderByDescending(x => x.Version)
+						.FirstOrDefault();
+
+					if (result != null)
+					{
+						version = SimplifyVersion(result.Version);
+						return result.FileName;
+					}
+				}
+				else
+				{
+					var result = Directory.GetFiles(filesPath)
+						.Where(fileName => Regex.IsMatch(Path.GetFileName(fileName), pattern, RegexOptions.IgnoreCase))
+						.Select(fileName => new
+						{
+							FileName = fileName,
+							Version = new Version()
+						})
+						.OrderByDescending(x => x.FileName)
+						.FirstOrDefault();
+
+					if (result != null)
+					{
+						version = result.Version;
+						return result.FileName;
+					}
 				}
 			}
 			catch (DirectoryNotFoundException)
@@ -362,13 +402,13 @@ namespace GitInstaller
 
 		private static Version SimplifyVersion(Version version)
 		{
-			if (version.Revision <= 0)
+			if (version.Revision <= 0 && version.Build <= 0)
+			{
+				version = new Version(version.Major, version.Minor);
+			}
+			else if (version.Revision <= 0)
 			{
 				version = new Version(version.Major, version.Minor, version.Build);
-				if (version.Build <= 0)
-				{
-					version = new Version(version.Major, version.Minor);
-				}
 			}
 			return version;
 		}
@@ -399,9 +439,20 @@ namespace GitInstaller
 				Dispatcher);
 		}
 
-		private Task<bool> InstallGitSetupConfig()
+		private void InstallGitSetupConfig()
 		{
-			return StartProcessAsync("regedit.exe", $@"/s ""{Path.Combine(filesPath, "Git-Install-Settings.reg")}""");
+			using (var key = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Git_is1", true))
+			{
+				key.SetValue("Inno Setup: Setup Type", "default");
+				key.SetValue("Inno Setup: Selected Components", "assoc,assoc_sh");
+				key.SetValue("Inno Setup: Deselected Components", @"icons,icons\desktop,ext,ext\shellhere,ext\guihere,consolefont");
+				key.SetValue("Inno Setup: Language", "default");
+				key.SetValue("Inno Setup CodeFile: Path Option", "Cmd");
+				key.SetValue("Inno Setup CodeFile: SSH Option", "Plink");
+				key.SetValue("Inno Setup CodeFile: CRLF Option", "CRLFCommitAsIs");
+				key.SetValue("Inno Setup CodeFile: Bash Terminal Option", "ConHost");
+				key.SetValue("Inno Setup CodeFile: Performance Tweaks FSCache", "Enabled");
+			}
 		}
 
 		private Task<bool> InstallTortoiseGitConfig()
@@ -414,7 +465,17 @@ namespace GitInstaller
 			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit", true))
 			{
 				key.SetValue("Diff", GetBeyondComparePath());
+				key.SetValue("DiffViewer", $@"""{GetBeyondComparePath()}"" /fv=""Text-Patch""");   // NOTE: For English BC this is "Text Patch" instead
 				key.SetValue("Merge", $@"""{GetBeyondComparePath()}"" %mine %theirs %base %merged");
+			}
+			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit\DiffTools", true))
+			{
+				key.SetValue(".bmp", $@"""{GetBeyondComparePath()}"" %base %mine");
+				key.SetValue(".gif", $@"""{GetBeyondComparePath()}"" %base %mine");
+				key.SetValue(".ico", $@"""{GetBeyondComparePath()}"" %base %mine");
+				key.SetValue(".jpg", $@"""{GetBeyondComparePath()}"" %base %mine");
+				key.SetValue(".png", $@"""{GetBeyondComparePath()}"" %base %mine");
+				key.SetValue(".tif", $@"""{GetBeyondComparePath()}"" %base %mine");
 			}
 		}
 
