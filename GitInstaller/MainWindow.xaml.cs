@@ -465,7 +465,7 @@ namespace GitInstaller
 			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit", true))
 			{
 				key.SetValue("Diff", GetBeyondComparePath());
-				key.SetValue("DiffViewer", $@"""{GetBeyondComparePath()}"" /fv=""Text-Patch""");   // NOTE: For English BC this is "Text Patch" instead
+				key.SetValue("DiffViewer", $@"""{GetBeyondComparePath()}"" /fv=""Text Patch""");
 				key.SetValue("Merge", $@"""{GetBeyondComparePath()}"" %mine %theirs %base %merged");
 			}
 			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit\DiffTools", true))
