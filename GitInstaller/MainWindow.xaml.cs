@@ -151,11 +151,19 @@ namespace GitInstaller
 
 					try
 					{
-						Process.Start("git.exe", "config --global tgit.projectlanguage -1");
+						// git.exe is not yet in the PATH on first installation. Find git.exe manually.
+						string gitPath;
+						using (var key = Registry.LocalMachine.OpenSubKey(@"Software\GitForWindows"))
+						{
+							gitPath = key?.GetValue("LibexecPath") as string;
+						}
+						gitPath = Path.Combine(gitPath, "git.exe");
+						Process.Start(gitPath, "config --global tgit.projectlanguage -1");
 					}
 					catch (Exception ex)
 					{
-						MessageBox.Show("Global Git configuration could not be set. " + ex.Message, "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+						Clipboard.SetText(ex.ToString());
+						MessageBox.Show("Global Git configuration could not be set. " + ex.Message + "\n\nDetails copied to the clipboard.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 					}
 				}
 				progressBar.Value = progress2;
@@ -185,7 +193,8 @@ namespace GitInstaller
 			}
 			catch (Exception ex)
 			{
-				MessageBox.Show("Unexpected error: " + ex.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+				Clipboard.SetText(ex.ToString());
+				MessageBox.Show("Unexpected error: " + ex.Message + "\n\nDetails copied to the clipboard.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
 				startButton.IsEnabled = true;
 			}
 			finally
@@ -237,9 +246,9 @@ namespace GitInstaller
 		{
 			if (!afterInstall)
 			{
-				using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit"))
+				using (var key = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\{1604F21B-D2B6-4124-A61A-661400C07143}"))
 				{
-					string version = key?.GetValue("CurrentVersion") as string;
+					string version = key?.GetValue("DisplayVersion") as string;
 					if (!string.IsNullOrEmpty(version))
 					{
 						tortoiseGitCurrentVersion = SimplifyVersion(Version.Parse(version));
@@ -441,7 +450,7 @@ namespace GitInstaller
 
 		private void InstallGitSetupConfig()
 		{
-			using (var key = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Git_is1", true))
+			using (var key = Registry.LocalMachine.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\Git_is1", true))
 			{
 				key.SetValue("Inno Setup: Setup Type", "default");
 				key.SetValue("Inno Setup: Selected Components", "assoc,assoc_sh");
@@ -462,13 +471,13 @@ namespace GitInstaller
 
 		private void InstallTortoiseGitBCConfig()
 		{
-			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit", true))
+			using (var key = Registry.CurrentUser.CreateSubKey(@"Software\TortoiseGit", true))
 			{
 				key.SetValue("Diff", GetBeyondComparePath());
 				key.SetValue("DiffViewer", $@"""{GetBeyondComparePath()}"" /fv=""Text Patch""");
 				key.SetValue("Merge", $@"""{GetBeyondComparePath()}"" %mine %theirs %base %merged");
 			}
-			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit\DiffTools", true))
+			using (var key = Registry.CurrentUser.CreateSubKey(@"Software\TortoiseGit\DiffTools", true))
 			{
 				key.SetValue(".bmp", $@"""{GetBeyondComparePath()}"" %base %mine");
 				key.SetValue(".gif", $@"""{GetBeyondComparePath()}"" %base %mine");
@@ -481,7 +490,7 @@ namespace GitInstaller
 
 		private void InstallTortoiseGitNPPConfig()
 		{
-			using (var key = Registry.CurrentUser.OpenSubKey(@"Software\TortoiseGit", true))
+			using (var key = Registry.CurrentUser.CreateSubKey(@"Software\TortoiseGit", true))
 			{
 				key.SetValue("AlternativeEditor", GetNotepadPPPath());
 			}

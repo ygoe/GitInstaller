@@ -9,10 +9,10 @@ using System.Windows;
 [assembly: AssemblyCompany("unclassified software development")]
 
 // Assembly identity version. Must be a dotted-numeric version.
-[assembly: AssemblyVersion("1.2")]
+[assembly: AssemblyVersion("1.2.2")]
 
 // Repeat for Win32 file version resource because the assembly version is expanded to 4 parts.
-[assembly: AssemblyFileVersion("1.2")]
+[assembly: AssemblyFileVersion("1.2.2")]
 
 // Indicate the build configuration
 #if DEBUG
@@ -26,6 +26,9 @@ using System.Windows;
 [assembly: ThemeInfo(ResourceDictionaryLocation.None, ResourceDictionaryLocation.SourceAssembly)]
 
 // Version history:
+//
+// 1.2.2 (2016-12-07)
+// * Fixed: Errors in clean system environment for first installation
 //
 // 1.2 (2016-09-13)
 // * Updated Beyond Compare as patch file viewer for all languages (requires BC 4.1.8)
