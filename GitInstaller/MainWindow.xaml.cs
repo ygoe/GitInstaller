@@ -246,7 +246,7 @@ namespace GitInstaller
 		{
 			if (!afterInstall)
 			{
-				using (var key = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\{1604F21B-D2B6-4124-A61A-661400C07143}"))
+				using (var key = Registry.LocalMachine.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\{0F9882B3-81A4-493B-989D-ABE8A75B5414}"))
 				{
 					string version = key?.GetValue("DisplayVersion") as string;
 					if (!string.IsNullOrEmpty(version))
