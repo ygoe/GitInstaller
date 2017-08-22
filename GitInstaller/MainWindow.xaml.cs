@@ -513,18 +513,35 @@ namespace GitInstaller
 
 		private Task<bool> InstallDiffMargin()
 		{
-			// VS2015
-			string vsixInstaller = @"C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\VSIXInstaller.exe";
+			string vsixInstaller;
+
+			// First try silent installation methods
+			// VS2017
+			vsixInstaller = @"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\Common7\IDE\VSIXInstaller.exe";
 			if (File.Exists(vsixInstaller))
 			{
-				// Can install silently
 				return StartProcessAsync(vsixInstaller, $@"/q ""{diffMarginInstaller}""");
 			}
-			else
+			vsixInstaller = @"C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE\VSIXInstaller.exe";
+			if (File.Exists(vsixInstaller))
 			{
-				// Try interactive method
-				return StartProcessAsync(diffMarginInstaller, "");
+				return StartProcessAsync(vsixInstaller, $@"/q ""{diffMarginInstaller}""");
 			}
+			vsixInstaller = @"C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\IDE\VSIXInstaller.exe";
+			if (File.Exists(vsixInstaller))
+			{
+				return StartProcessAsync(vsixInstaller, $@"/q ""{diffMarginInstaller}""");
+			}
+
+			// VS2015
+			vsixInstaller = @"C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\VSIXInstaller.exe";
+			if (File.Exists(vsixInstaller))
+			{
+				return StartProcessAsync(vsixInstaller, $@"/q ""{diffMarginInstaller}""");
+			}
+
+			// Try interactive method
+			return StartProcessAsync(diffMarginInstaller, "");
 		}
 
 		private Task<bool> StartProcessAsync(string fileName, string arguments)

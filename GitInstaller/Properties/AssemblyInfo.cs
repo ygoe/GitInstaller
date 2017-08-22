@@ -4,15 +4,15 @@ using System.Windows;
 
 [assembly: AssemblyProduct("GitInstaller")]
 [assembly: AssemblyTitle("GitInstaller")]
-[assembly: AssemblyDescription("Installs and configures Git, LFS and TortoiseGit.")]
+[assembly: AssemblyDescription("Installs or updates Git components on a developer computer.")]
 [assembly: AssemblyCopyright("© 2016–2017 Yves Goergen")]
 [assembly: AssemblyCompany("unclassified software development")]
 
 // Assembly identity version. Must be a dotted-numeric version.
-[assembly: AssemblyVersion("1.2.3")]
+[assembly: AssemblyVersion("1.2.4")]
 
 // Repeat for Win32 file version resource because the assembly version is expanded to 4 parts.
-[assembly: AssemblyFileVersion("1.2.3")]
+[assembly: AssemblyFileVersion("1.2.4")]
 
 // Indicate the build configuration
 #if DEBUG
@@ -26,6 +26,9 @@ using System.Windows;
 [assembly: ThemeInfo(ResourceDictionaryLocation.None, ResourceDictionaryLocation.SourceAssembly)]
 
 // Version history:
+//
+// 1.2.4 (2017-08-22)
+// * Improved support for Visual Studio 2017
 //
 // 1.2.3 (2017-02-28)
 // * Fixed: TortoiseGit Uninstall AppId has changed
